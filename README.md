@@ -24,12 +24,16 @@ cd mcp_tools
 ```
 
 2. Install the required dependencies:
-
+≈
 uv venv
 source .venv/bin/activate
+```
 
 # Install dependencies
+
+```bash
 uv add "mcp[cli]" httpx
+```
 
 or 
 
