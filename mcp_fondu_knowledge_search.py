@@ -3,10 +3,17 @@ import sys
 import traceback
 import logging
 import httpx
+import os
+import uvicorn
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from mcp.server.fastmcp import FastMCP
 
 # Initialize FastMCP server
 mcp = FastMCP("knowledge_vault")
+
+# Create a FastAPI app
+app = FastAPI(title="Knowledge Vault MCP API")
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, 
@@ -840,9 +847,30 @@ async def gather_relevant_user_knowledge(
 #         print(error_msg, file=sys.stderr)
 #         return f"Error retrieving Canvas module items: {str(e)}"
 
+# Add FastAPI endpoints
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
+@app.post("/api/mcp")
+async def handle_mcp_request(request: Request):
+    try:
+        body = await request.json()
+        # Pass the request to MCP for processing
+        result = await mcp.process_json_request(body)
+        return JSONResponse(content=result)
+    except Exception as e:
+        logging.error(f"Error handling MCP request: {str(e)}")
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
 if __name__ == "__main__":
     try:
-        mcp.run(transport='stdio')
+        # Get port from environment variable or use default
+        port = int(os.environ.get("PORT", 8080))
+        
+        # Start the FastAPI server with uvicorn
+        print(f"Starting FastAPI server on port {port}", file=sys.stderr)
+        uvicorn.run(app, host="0.0.0.0", port=port)
     except Exception as e:
         error_msg = f"Fatal error in MCP server: {str(e)}\n{traceback.format_exc()}"
         print(error_msg, file=sys.stderr)
