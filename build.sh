@@ -19,4 +19,9 @@ pip install --upgrade pip
 echo "===== Installing dependencies from requirements.txt ====="
 pip install -r requirements.txt
 
+# Create a package for deployment if needed
+echo "===== Creating package for deployment ====="
+pip install build wheel
+python -m build
+
 echo "===== Build process complete ====="
