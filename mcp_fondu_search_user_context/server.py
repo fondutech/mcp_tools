@@ -23,13 +23,17 @@ logging.basicConfig(level=logging.DEBUG,
 print("Starting knowledge_vault MCP server...", file=sys.stderr)
 
 # API configuration
-# NEXT_PUBLIC_API_HOST = "http://127.0.0.1:5000"
-NEXT_PUBLIC_API_HOST = "https://api.youfondu.com"
+NEXT_PUBLIC_API_HOST = "http://127.0.0.1:5000"
+# NEXT_PUBLIC_API_HOST = "https://api.youfondu.com"
 
 USER_AGENT = "personal-vault-app/1.0"
 
-# Create an error log file
-error_log = open("error_log.txt", "a")
+try:
+    error_log = open("/tmp/error_log.txt", "a")
+except OSError:
+    # Fall back to using stderr for logging when file can't be created
+    import sys
+    error_log = sys.stderr
 
 async def make_fondu_api_request(url: str, method: str = "GET", json_data: dict = None) -> dict[str, Any] | None:
     """Make a request to the API with proper error handling."""
