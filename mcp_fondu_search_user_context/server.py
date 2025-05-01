@@ -23,8 +23,8 @@ logging.basicConfig(level=logging.DEBUG,
 print("Starting knowledge_vault MCP server...", file=sys.stderr)
 
 # API configuration
-NEXT_PUBLIC_API_HOST = "http://127.0.0.1:5000"
-# NEXT_PUBLIC_API_HOST = "https://api.youfondu.com"
+# NEXT_PUBLIC_API_HOST = "http://127.0.0.1:5000"
+NEXT_PUBLIC_API_HOST = "https://api.youfondu.com"
 
 USER_AGENT = "personal-vault-app/1.0"
 

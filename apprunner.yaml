@@ -1,0 +1,16 @@
+version: 1.0
+runtime: python3
+build:
+  commands:
+    build:
+      - pip install --upgrade pip
+      - pip install -r requirements.txt
+run:
+  runtime-version: 3.10
+  command: python mcp_fondu_search_user_context/run.py
+  network:
+    port: 8080
+    env: PORT
+  env:
+    - name: API_HOST
+      value: "https://api.youfondu.com"  # Replace with your actual API endpoint 
