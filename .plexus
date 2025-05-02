@@ -6,11 +6,10 @@ install:
   command: "pip install -r requirements.txt"
 
 run:
-  command: "gunicorn -k uvicorn.workers.UvicornWorker mcp_fondu_search_user_context.server:app"
+  command: "gunicorn -k uvicorn.workers.UvicornWorker mcp_fondu_search_user_context.run:app"
 
 template: internet_facing_service_deployment_template
 
 template_parameters:
   SSLCertificateARN: "arn:aws:acm:us-east-1:885710708332:certificate/e800c314-8214-44a8-bb5e-bd693da53d55"
   Memory: "2000"
-  HealthCheckEndpoint: "/health"
