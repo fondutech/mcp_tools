@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 set -e
 
 echo "===== Verifying Python version ====="
