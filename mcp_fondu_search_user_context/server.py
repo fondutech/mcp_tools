@@ -25,7 +25,9 @@ from agentic_profile_auth import (
     handle_authorization
 )
 from agentic_profile_auth.did_resolver import HttpDidResolver
+from agentic_profile_auth.web_did_resolver import get_web_resolver
 from agentic_profile_auth.models import AgenticProfile
+from pydantic import BaseModel, Field
 
 # Configure logging
 logging.basicConfig(
@@ -308,11 +310,15 @@ class InMemoryAgenticProfileStore:
     async def get_agentic_profile(self, did: str) -> Optional[AgenticProfile]:
         """Get an agentic profile by DID"""
         return self.profiles.get(did)
+    
+    async def load_agentic_profile(self, did: str) -> Optional[AgenticProfile]:
+        """Load an agentic profile by DID (alias for get_agentic_profile)"""
+        return await self.get_agentic_profile(did)
 
 # Initialize stores and resolvers
 session_store = InMemoryClientAgentSessionStore()
 profile_store = InMemoryAgenticProfileStore()
-did_resolver = HttpDidResolver(store=profile_store)
+did_resolver = HttpDidResolver(store=profile_store, registry=get_web_resolver())
 
 async def get_profile(request: Request) -> Response:
     """
@@ -341,9 +347,11 @@ async def get_profile(request: Request) -> Response:
     
     try:
         # Step 2: Validate auth token
+        print(f"DEBUG: Attempting to validate auth token: {auth[:50]}...")
         session = await handle_authorization(auth, session_store, did_resolver)
-        print('session',session)
+        print('DEBUG: session result:', session)
         if not session or not session.agent_did:
+            print('DEBUG: No session or agent_did found')
             return Response(
                 status_code=401,
                 content=json.dumps({"error": "Invalid session or agent DID"}),
@@ -360,11 +368,74 @@ async def get_profile(request: Request) -> Response:
         
     except Exception as e:
         logger.error(f"Authentication error: {str(e)}")
+        print(f"DEBUG: Authentication exception: {type(e).__name__}: {str(e)}")
+        import traceback
+        print(f"DEBUG: Full traceback: {traceback.format_exc()}")
         return Response(
             status_code=401,
             content=json.dumps({"error": f"Authentication failed: {str(e)}"}),
             media_type="application/json"
         )
+
+async def add_profile_for_testing(request: Request) -> Response:
+    """
+    Temporary endpoint to add profiles to the server's store for testing.
+    This should be removed in production.
+    """
+    try:
+        profile_data = await request.json()
+        profile = AgenticProfile(**profile_data)
+        await profile_store.save_agentic_profile(profile)
+        return JSONResponse({
+            "message": "Profile added successfully",
+            "did": profile.id
+        })
+    except Exception as e:
+        logger.error(f"Error adding profile: {str(e)}")
+        return Response(
+            status_code=400,
+            content=json.dumps({"error": f"Failed to add profile: {str(e)}"}),
+            media_type="application/json"
+        )
+
+async def serve_did_document(request: Request) -> Response:
+    """
+    Serve the DID document at the web DID location.
+    This endpoint serves the DID document at /.well-known/did.json
+    """
+    # Create a DID document that matches the AgenticProfile schema
+    did_document = {
+        "@context": [
+            "https://www.w3.org/ns/did/v1",
+            "https://w3id.org/security/suites/ed25519-2020/v1"
+        ],
+        "id": "did:web:test.example.com",
+        "name": "Test Agent",
+        "verificationMethod": [
+            {
+                "id": "did:web:test.example.com#key-1",
+                "type": "JsonWebKey2020",
+                "controller": "did:web:test.example.com",
+                "publicKeyJwk": {
+                    "kty": "OKP",
+                    "alg": "EdDSA",
+                    "crv": "Ed25519",
+                    "x": "2Blqk8Ygn662QyZPWHFAsAnr4rQ51ujGm8agUifpw80"
+                }
+            }
+        ],
+        "service": [
+            {
+                "id": "did:web:test.example.com#agent",
+                "type": "AgentService",
+                "serviceEndpoint": "https://test.example.com/agent",
+                "name": "Test Agent Service",
+                "capabilityInvocation": ["did:web:test.example.com#key-1"]
+            }
+        ]
+    }
+    
+    return JSONResponse(did_document)
 
 def create_starlette_app(mcp_server: Server, *, debug: bool = False) -> Starlette:
     sse = SseServerTransport("/messages/")
@@ -385,6 +456,8 @@ def create_starlette_app(mcp_server: Server, *, debug: bool = False) -> Starlett
             Route("/", endpoint=homepage),
             Route("/health", endpoint=health_check),
             Route("/v1/profile", get_profile, methods=["GET", "POST"]),
+            Route("/v1/test/add-profile", add_profile_for_testing, methods=["POST"]),
+            Route("/.well-known/did.json", serve_did_document),
             Route("/sse", endpoint=handle_sse),
             Mount("/messages/", app=sse.handle_post_message),
         ],
